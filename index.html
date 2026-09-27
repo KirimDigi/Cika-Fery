@@ -877,11 +877,9 @@
     </style>
     <script>
       (function () {
-        var KEY = 'cikaFeryWishes';
-        // ISI URL WEB APP APPS SCRIPT DI SINI SETELAH DEPLOY, contoh: 'https://script.google.com/macros/s/AKfyc.../exec'
+        // Sumber utama HANYA spreadsheet via Apps Script. Tidak pakai localStorage.
         var SHEET_API = 'https://script.google.com/macros/s/AKfycbw0w6hWmJjzc_qAqsVSf4zDt0VdMlRJUuYDMTvWGhcfwmdcbyVOWSylaUAyNqZ16bhu2A/exec';
-        function load() { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; } }
-        function save(d) { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) { } }
+        var data = [];
         function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
         function fmtTime(ts) {
           try {
@@ -901,7 +899,6 @@
             + (t ? '<div style="margin-top:4px;font-size:11px;opacity:.6;">' + esc(t) + '</div>' : '') + '</div>';
         }
         function render() {
-          var data = load();
           var html = !data.length
             ? '<p class="text-center" style="opacity:.6">Belum ada ucapan. Jadilah yang pertama!</p>'
             : data.slice().reverse().map(card).join('');
@@ -918,20 +915,10 @@
           var t = (typeof w.at === 'number') ? w.at : (Date.parse(w.at) || Date.parse(w.timestamp) || 0);
           return (w.name || '') + '|' + (w.attend || '') + '|' + (w.guests || '') + '|' + (w.msg || w.message || '') + '|' + Math.floor(t / 60000);
         }
-        function cleanLocal() {
-          var data = load(), seen = {}, out = [], changed = false;
-          data.forEach(function (w) {
-            var k = wkey(w);
-            if (seen[k]) { changed = true; return; }
-            seen[k] = 1; out.push(w);
-          });
-          if (changed) save(out);
-          return out;
-        }
         function pullSheet() {
           if (!SHEET_API) return;
           fetch(SHEET_API, { method: 'GET' }).then(function (r) { return r.json(); }).then(function (rows) {
-            var now = Date.now(), sheetMap = {}, out = [], seen = {};
+            var out = [], seen = {};
             (rows || []).forEach(function (r) {
               var w = {
                 name: r.name || r.nama || '',
@@ -942,15 +929,10 @@
               };
               if (!w.name || !w.msg) return;
               var k = wkey(w);
-              if (!seen[k]) { seen[k] = 1; sheetMap[k] = w; out.push(w); }
+              if (!seen[k]) { seen[k] = 1; out.push(w); }
             });
-            // sheet = sumber utama; data lokal yg tidak ada di sheet & sudah lama ikut dibuang
-            // (mis. sudah dihapus manual dari spreadsheet), yg baru <10 mnt disimpan (menunggu sync)
-            load().forEach(function (w) {
-              var k = wkey(w);
-              if (!seen[k] && (now - (w.at || 0)) < 10 * 60 * 1000) { seen[k] = 1; out.push(w); }
-            });
-            save(out); render();
+            // spreadsheet = satu-satunya sumber. Yang dihapus di sheet langsung hilang di web saat refresh/pull.
+            data = out; render();
           }).catch(function () { });
         }
         function pushSheet(w) {
@@ -958,7 +940,7 @@
           fetch(SHEET_API, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({ name: w.name, attend: w.attend, guests: w.guests, message: w.msg, timestamp: new Date(w.at).toISOString() })
-          }).catch(function () { });
+          }).then(function () { setTimeout(pullSheet, 2500); }).catch(function () { setTimeout(pullSheet, 2500); });
         }
         function toggleGuests() {
           var wrap = document.getElementById('guestCountWrap');
@@ -986,9 +968,7 @@
             if (!name || !msg) return;
             if (!att) { alert('Silakan pilih konfirmasi kehadiran dulu (Hadir / Tidak Hadir).'); return; }
             var w = { name: name, attend: att.value, guests: att.value === 'Hadir' ? guests : '', msg: msg, at: Date.now() };
-            var data = load();
             data.push(w);
-            save(data);
             render();
             pushSheet(w);
             e.target.reset();
@@ -997,8 +977,8 @@
             if (done) { done.style.display = 'block'; setTimeout(function () { done.style.display = 'none'; }, 3000); }
           }
         });
-        document.addEventListener('DOMContentLoaded', function () { toggleGuests(); cleanLocal(); render(); pullSheet(); });
-        toggleGuests(); cleanLocal(); render(); pullSheet();
+        document.addEventListener('DOMContentLoaded', function () { toggleGuests(); render(); pullSheet(); });
+        toggleGuests(); render(); pullSheet();
       })();
     </script>
     <div id="waterMark" class="mt-5" style="display: none">
