@@ -766,6 +766,9 @@
           <div class="text-center py-4 px-4">
             <div>
               <div class="mx-auto">
+                <img id="qrImg" alt="QR Tamu" width="180" height="180"
+                  style="width:180px;height:180px;display:none;background:#fff;"
+                  src="">
                 <?xml version="1.0" encoding="UTF-8"?>
                 <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="180" height="180" viewbox="0 0 180 180">
                   <rect x="0" y="0" width="180" height="180" fill="#ffffff"></rect>
@@ -1109,8 +1112,24 @@
           }
           return '';
         }
+        function baseUrl() {
+          try { return location.href.split('#')[0].split('?')[0]; }
+          catch (e) { return 'https://kirimdigi.github.io/Cika-Fery/'; }
+        }
+        function updateQr(g) {
+          var img = document.getElementById('qrImg');
+          if (!img) return;
+          // QR berisi link undangan + parameter nama, jadi hasil scan sesuai nama tamu
+          var value = g ? (baseUrl() + '?to=' + encodeURIComponent(g)) : baseUrl();
+          img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=5&data=' + encodeURIComponent(value);
+          img.style.display = 'inline-block';
+          img.alt = g ? ('QR - ' + g) : 'QR Undangan';
+          var statics = document.querySelectorAll('#qrModal .mx-auto svg');
+          for (var i = 0; i < statics.length; i++) statics[i].style.display = 'none';
+        }
         function apply() {
           var g = getGuest();
+          updateQr(g);
           if (!g) return;
           var slot = document.getElementById('guestNameSlot');
           if (slot) slot.textContent = g;
