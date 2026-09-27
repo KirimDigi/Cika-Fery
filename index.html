@@ -1119,8 +1119,8 @@
         function updateQr(g) {
           var img = document.getElementById('qrImg');
           if (!img) return;
-          // QR berisi link undangan + parameter nama, jadi hasil scan sesuai nama tamu
-          var value = g ? (baseUrl() + '?to=' + encodeURIComponent(g)) : baseUrl();
+          // QR berisi nama tamu saja, tidak mengubah nama undangan
+          var value = g ? g : 'Cika & Fery - 25 October 2026';
           img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=5&data=' + encodeURIComponent(value);
           img.style.display = 'inline-block';
           img.alt = g ? ('QR - ' + g) : 'QR Undangan';
